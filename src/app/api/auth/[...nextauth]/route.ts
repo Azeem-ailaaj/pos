@@ -7,7 +7,7 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma), // ✅ Use PrismaAdapter to store sessions in DB
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -28,7 +28,7 @@ export const authOptions: AuthOptions = {
           throw new Error("No user found with this email");
         }
 
-        const passwordMatch = bcrypt.compare(credentials.password, user.password);
+        const passwordMatch = await bcrypt.compare(credentials.password, user.password);
         if (!passwordMatch) {
           throw new Error("Incorrect password");
         }
@@ -38,22 +38,12 @@ export const authOptions: AuthOptions = {
     })
   ],
   session: {
-    strategy: "jwt" as "jwt",
+    strategy: "database", // ✅ This will store sessions in your "Session" table
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async jwt({ token, user }: { token: any; user?: any }) {
-      if (user) {
-        token.id = user.id;
-        token.email = user.email;
-      }
-      return token;
-    },
-    async session({ session, token }: { session: any; token: any }) {
-      if (session?.user) {
-        session.user.id = token.id;
-        session.user.email = token.email;
-      }
+    async session({ session, user }) {
+      session.user.id = user.id;
       return session;
     }
   },
@@ -61,6 +51,6 @@ export const authOptions: AuthOptions = {
     signIn: "/auth/signin",
   }
 };
- 
+
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
