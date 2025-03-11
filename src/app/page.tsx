@@ -38,9 +38,9 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* ✅ TanStack Query Section */}
+        {/* ✅ TanStack Query Section- */}
         <div className="p-6 mt-8">
-          <h1 className="text-2xl font-bold mb-4">🚀 TanStack Query Example</h1>
+          <h1 className="text-2xl font-bold mb-4">🚀 TanStack Query Example - azeem testing new update</h1>
 
           {/* ✅ Handle Loading State */}
           {isLoading && <p>Loading...</p>}
