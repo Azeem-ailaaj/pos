@@ -1,18 +1,23 @@
-import { Pool } from "pg";
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { query } from "@/lib/db";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Required for AWS RDS if SSL is enabled
-  },
-});
-
-export const query = async (text: string, params?: any[]) => {
-  const client = await pool.connect();
+export async function POST(req: Request) {
   try {
-    const result = await client.query(text, params);
-    return result;
-  } finally {
-    client.release();
+    const { name, email, password } = await req.json();
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert user into database
+    const result = await query(
+      "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *",
+      [name, email, hashedPassword]
+    );
+
+    return NextResponse.json({ user: result.rows[0] }, { status: 201 });
+  } catch (error) {
+    console.error("Signup error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-};
+}
