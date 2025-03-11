@@ -30,8 +30,11 @@ export async function POST(req: Request) {
       },
     });
 
-    // Redirect to signin page after successful signup
-    return NextResponse.redirect(new URL("/auth/signin", req.url));
+    // Return success response instead of redirect
+    return NextResponse.json(
+      { success: true, message: "User created successfully" },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Signup error:", error);
     return NextResponse.json(

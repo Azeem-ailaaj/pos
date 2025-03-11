@@ -26,7 +26,7 @@ export default function SignIn() {
     if (result?.error) {
       setError("Invalid email or password");
     } else {
-      router.push("/dashboard"); // Redirect manually after successful login
+      router.push("/"); // Redirect to home page instead of dashboard
     }
   };
 

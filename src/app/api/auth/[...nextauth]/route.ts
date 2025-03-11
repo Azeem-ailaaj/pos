@@ -1,4 +1,4 @@
-import NextAuth, { AuthOptions } from "next-auth";
+import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma"; // ✅ Ensure prisma instance is properly imported
@@ -8,7 +8,7 @@ export const authOptions: AuthOptions = {
   debug: true,
   adapter: PrismaAdapter(prisma), // ✅ Store sessions in DB
   session: {
-    strategy: "database", // ✅ Database-based sessions
+    strategy: "jwt", // Keep JWT strategy
   },
   secret: process.env.NEXTAUTH_SECRET,
 
@@ -20,33 +20,28 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        try {
-          if (!credentials?.email || !credentials?.password) {
-            throw new Error("Email and password are required");
-          }
-
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-          });
-
-          if (!user || !user.password) {
-            throw new Error("No user found with this email");
-          }
-
-          const passwordMatch = await bcrypt.compare(credentials.password, user.password);
-          if (!passwordMatch) {
-            throw new Error("Incorrect password");
-          }
-
-          return {
-            id: user.id.toString(),
-            email: user.email,
-            name: user.name,
-          };
-        } catch (error) {
-          console.error("Authorize error:", error);
-          throw new Error("Authorization failed");
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password are required");
         }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (!user || !user.password) {
+          throw new Error("No user found with this email");
+        }
+
+        const passwordMatch = await bcrypt.compare(credentials.password, user.password);
+        if (!passwordMatch) {
+          throw new Error("Incorrect password");
+        }
+
+        return {
+          id: user.id.toString(),
+          email: user.email,
+          name: user.name,
+        };
       },
     }),
   ],
@@ -61,27 +56,22 @@ export const authOptions: AuthOptions = {
 
     async session({ session, token }) {
       if (token?.id) {
-        if (session.user) {
-          session.user.id = token.id; // ✅ Ensure user ID is in session
-        }
-      }
-      return session;
-    },
-  },
-
-  events: {
-    async createSession({ session }) {
-      try {
-        await prisma.session.create({
-          data: {
-            sessionToken: session.id,
+        session.user.id = token.id; // ✅ Ensure user ID is in session
+        
+        // Store or update session in database
+        await prisma.session.upsert({
+          where: { sessionToken: session.user.id },
+          update: { 
+            expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) 
+          },
+          create: {
+            sessionToken: session.user.id,
             userId: session.user.id,
-            expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           },
         });
-      } catch (error) {
-        console.error("Session creation error:", error);
       }
+      return session;
     },
   },
 
