@@ -30,7 +30,8 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ user: newUser }, { status: 201 });
+    // Redirect to signin page after successful signup
+    return NextResponse.redirect(new URL("/auth/signin", req.url));
   } catch (error) {
     console.error("Signup error:", error);
     return NextResponse.json(
