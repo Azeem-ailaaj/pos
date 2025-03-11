@@ -28,7 +28,7 @@ export const authOptions: AuthOptions = {
           throw new Error("No user found with this email");
         }
 
-        const passwordMatch = await bcrypt.compare(credentials.password, user.password);
+        const passwordMatch = bcrypt.compare(credentials.password, user.password);
         if (!passwordMatch) {
           throw new Error("Incorrect password");
         }
