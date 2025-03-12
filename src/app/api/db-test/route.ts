@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import prisma from "@/lib/db";
 
 export async function GET() {
   try {
-    const result = await query("SELECT NOW();"); // Test Query
-    return NextResponse.json({ success: true, data: result.rows });
+    // Using Prisma client instead of raw query
+    const result = await prisma.$queryRaw`SELECT NOW()`;
+    return NextResponse.json({ success: true, data: result });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
