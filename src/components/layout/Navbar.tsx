@@ -1,9 +1,9 @@
 "use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
 import { useSession, signOut } from "next-auth/react"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,31 +11,62 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ChevronDown, LogOut, Settings } from "lucide-react"
+import { useRouter, usePathname } from "next/navigation"
 
 export function Navbar() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  // Listen for storage events to sync logout across tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'logout') {
+        router.refresh()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [router])
+
+  const handleSignOut = async () => {
+    try {
+      // First, clear any local storage data
+      localStorage.clear()
+      sessionStorage.clear()
+
+      // Perform the signout
+      await signOut({ 
+        redirect: false
+      })
+
+      // Force navigation to home page
+      router.push('/')
+      router.refresh()
+
+      // If on an admin page, redirect to signin
+      if (pathname.startsWith('/admin')) {
+        router.push('/auth/signin')
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="relative w-10 h-10 bg-gray-100 rounded-full overflow-hidden">
-                <Image
+            <Link href="/" className="flex items-center">
+              <div className="relative h-16 w-16">
+                <img
                   src="/images/ailaaj-logo.png"
                   alt="Ailaaj Logo"
-                  width={40}
-                  height={40}
-                  className="object-cover"
-                  priority
-                  onError={(e) => {
-                    console.error('Image failed to load');
-                    e.currentTarget.src = '/fallback-logo.png';
-                  }}
+                  className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-blue-600">Ailaaj POS</span>
             </Link>
           </div>
           <div className="flex items-center gap-4">
@@ -54,7 +85,7 @@ export function Navbar() {
                       Control Panel
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => signOut()} className="flex items-center gap-2">
+                  <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2">
                     <LogOut className="h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>
