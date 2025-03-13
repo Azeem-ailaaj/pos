@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 import { uploadImage } from "@/lib/uploadImage"
 import { toast } from "sonner"
 import Image from "next/image"
@@ -14,6 +15,7 @@ interface BrandFormProps {
     name: string
     description: string
     imageUrl: string
+    active?: boolean
   }
   onSuccess?: () => void
   onCancel?: () => void
@@ -25,6 +27,7 @@ export function BrandForm({ initialData, onSuccess, onCancel }: BrandFormProps) 
     name: initialData?.name || "",
     description: initialData?.description || "",
     imageUrl: initialData?.imageUrl || "",
+    active: initialData?.active ?? true,
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState(initialData?.imageUrl || "")
@@ -125,6 +128,19 @@ export function BrandForm({ initialData, onSuccess, onCancel }: BrandFormProps) 
           value={formData.imageUrl}
           onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
           placeholder="Enter image URL"
+        />
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border p-4">
+        <div className="space-y-0.5">
+          <label className="text-sm font-medium">Active Status</label>
+          <div className="text-sm text-gray-500">
+            Brand will be available for selection when active
+          </div>
+        </div>
+        <Switch
+          checked={formData.active}
+          onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
         />
       </div>
 

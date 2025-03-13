@@ -17,14 +17,13 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
+    const json = await req.json();
     const brand = await prisma.brand.create({
       data: {
-        name: body.name,
-        description: body.description,
-        imageUrl: body.imageUrl,
+        name: json.name,
+        active: json.active,
       },
     });
     return NextResponse.json(brand);

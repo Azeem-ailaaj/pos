@@ -2,8 +2,66 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
-import { Tags } from "lucide-react"
-import { format, parseISO } from "date-fns"
+import { Tags, Store, TrendingUp, TrendingDown } from "lucide-react"
+import { format, parseISO, startOfDay, endOfDay, subDays } from "date-fns"
+import prisma from "@/lib/prisma"
+
+export async function BrandStats() {
+  const now = new Date()
+  const today = {
+    start: startOfDay(now),
+    end: endOfDay(now)
+  }
+  
+  const yesterday = {
+    start: startOfDay(subDays(now, 1)),
+    end: endOfDay(subDays(now, 1))
+  }
+
+  const [totalBrands, todayBrands, yesterdayBrands] = await Promise.all([
+    prisma.brand.count(),
+    prisma.brand.count({
+      where: {
+        createdAt: {
+          gte: today.start,
+          lte: today.end
+        }
+      }
+    }),
+    prisma.brand.count({
+      where: {
+        createdAt: {
+          gte: yesterday.start,
+          lte: yesterday.end
+        }
+      }
+    })
+  ])
+
+  const trend = todayBrands > yesterdayBrands ? 'up' : todayBrands < yesterdayBrands ? 'down' : 'neutral'
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">Brands</CardTitle>
+        <Store className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-baseline space-x-3">
+          <div className="text-2xl font-bold">{totalBrands}</div>
+          <div className="flex items-center text-xs text-muted-foreground">
+            {trend === 'up' && <TrendingUp className="h-3 w-3 text-green-500 mr-1" />}
+            {trend === 'down' && <TrendingDown className="h-3 w-3 text-red-500 mr-1" />}
+            <span>{todayBrands} today</span>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          {yesterdayBrands} yesterday
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
 
 interface StatsCardProps {
   title: string
@@ -68,7 +126,7 @@ export function StatsCard({ title, value, data, trend }: StatsCardProps) {
           <div className="text-2xl font-bold">{value}</div>
           <div className={`text-sm ${trendColor}`}>
             {trend === "positive" && "+"}
-            {((data[data.length - 1]?.count || 0) - (data[0]?.count || 0))} this month
+            {((data[data.length - 1]?.count || 0) - (data[0]?.count || 0))} Today
           </div>
         </div>
         <div className="h-[80px] mt-4">
