@@ -2,104 +2,135 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
-export default function SignupPage() {
+export default function SignUpPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch("/api/auth/signup", {
+      const response = await fetch("/api/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Signup failed");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || "Something went wrong");
       }
 
-      // Successfully created user, redirect to signin
+      toast.success("Account created successfully");
       router.push("/auth/signin");
-    } catch (err) {
-      setError(err.message);
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl">Create an Account</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {error && <p className="text-red-500 mb-4 text-sm text-center">{error}</p>}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input 
-                id="name" 
-                name="name" 
-                value={formData.name} 
-                onChange={handleChange} 
-                placeholder="John Doe"
-                required 
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input 
-                id="email" 
-                name="email" 
-                type="email" 
-                value={formData.email} 
-                onChange={handleChange} 
-                placeholder="you@example.com"
-                required 
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                name="password" 
-                type="password" 
-                value={formData.password} 
-                onChange={handleChange} 
-                placeholder="••••••••"
-                required 
-              />
-            </div>
-            
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing up..." : "Sign Up"}
-            </Button>
-            
-            <p className="text-center text-sm mt-4">
-              Already have an account? <a href="/auth/signin" className="text-blue-600 hover:underline">Sign in</a>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full p-6 space-y-6 bg-white rounded-lg shadow-lg">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Create an Account</h1>
+          <p className="text-gray-600">Sign up to get started</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Input
+              type="text"
+              name="name"
+              placeholder="Full Name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div>
+            <Input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div>
+            <Input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              minLength={6}
+            />
+          </div>
+          <div>
+            <Input
+              type="password"
+              name="confirmPassword"
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              minLength={6}
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading}
+          >
+            {loading ? "Creating Account..." : "Sign Up"}
+          </Button>
+        </form>
+
+        <div className="text-center text-sm">
+          <p className="text-gray-600">
+            Already have an account?{" "}
+            <a href="/auth/signin" className="text-blue-600 hover:underline">
+              Sign In
+            </a>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

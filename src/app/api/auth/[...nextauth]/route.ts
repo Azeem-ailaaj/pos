@@ -1,11 +1,13 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import GithubProvider from "next-auth/providers/github";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma"; // ✅ Ensure prisma instance is properly imported
 import bcrypt from "bcrypt";
 
 export const authOptions: AuthOptions = {
-  debug: true,
+  debug: process.env.NODE_ENV === "development",
   adapter: PrismaAdapter(prisma), // ✅ Store sessions in DB
   session: {
     strategy: "jwt", // Keep JWT strategy
@@ -21,7 +23,7 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password are required");
+          throw new Error("Invalid credentials");
         }
 
         const user = await prisma.user.findUnique({
@@ -29,34 +31,40 @@ export const authOptions: AuthOptions = {
         });
 
         if (!user || !user.password) {
-          throw new Error("No user found with this email");
+          throw new Error("Invalid credentials");
         }
 
-        const passwordMatch = await bcrypt.compare(credentials.password, user.password);
-        if (!passwordMatch) {
-          throw new Error("Incorrect password");
+        const isCorrectPassword = await bcrypt.compare(credentials.password, user.password);
+        if (!isCorrectPassword) {
+          throw new Error("Invalid credentials");
         }
 
-        return {
-          id: user.id.toString(),
-          email: user.email,
-          name: user.name,
-        };
+        return user;
       },
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
+    GithubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
     }),
   ],
 
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id; // ✅ Store user ID in JWT
+        token.sub = user.id;
+        token.role = user.role;
       }
       return token;
     },
 
     async session({ session, token }) {
-      if (token?.id) {
-        session.user.id = token.id; // ✅ Ensure user ID is in session
+      if (token && session.user) {
+        session.user.id = token.sub;
+        session.user.role = token.role;
         
         // Store or update session in database
         await prisma.session.upsert({
@@ -77,6 +85,8 @@ export const authOptions: AuthOptions = {
 
   pages: {
     signIn: "/auth/signin",
+    signOut: '/',
+    error: '/auth/error',
   },
 };
 
