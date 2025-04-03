@@ -29,12 +29,36 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
+interface Permission {
+  resource: string;
+  action: string;
+}
+
 interface User {
   id: string;
   name: string | null;
   email: string | null;
   role: string;
+  permissions: Permission[];
 }
+
+const RESOURCES = {
+  products: "Products",
+  categories: "Categories",
+  orders: "Orders",
+  customers: "Customers",
+  users: "Users",
+  settings: "Settings",
+  reports: "Reports",
+  locations: "Locations",  // Add this line
+};
+
+const ACTIONS = {
+  create: "Create",
+  read: "Read",
+  update: "Update",
+  delete: "Delete"
+};
 
 export default function SettingsPage() {
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -44,6 +68,8 @@ export default function SettingsPage() {
     password: "",
     role: "user",
   });
+  const [open, setOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const { data: users, refetch } = useQuery<User[]>({
     queryKey: ["users"],
@@ -97,6 +123,96 @@ export default function SettingsPage() {
     } catch (error: any) {
       toast.error(error.message);
     }
+  };
+
+  const handleUpdatePermissions = async (userId: string, permissions: Permission[]) => {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/permissions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions })
+      });
+      
+      if (!res.ok) throw new Error('Failed to update permissions');
+      
+      toast.success('Permissions updated successfully');
+      refetch();
+      setOpen(false);
+    } catch (error) {
+      toast.error('Failed to update permissions');
+    }
+  };
+
+  const hasPermission = (permissions: Permission[] | undefined, resource: string, action: string) => {
+    if (!permissions) return false;
+    return permissions.some(p => p.resource === resource && p.action === action);
+  };
+
+  const togglePermission = (
+    user: User,
+    resource: string,
+    action: string
+  ) => {
+    if (!selectedUser) return;
+
+    let newPermissions = [...(selectedUser.permissions || [])];
+    const exists = hasPermission(newPermissions, resource, action);
+
+    if (exists) {
+      newPermissions = newPermissions.filter(
+        p => !(p.resource === resource && p.action === action)
+      );
+    } else {
+      newPermissions.push({ resource, action });
+    }
+
+    setSelectedUser({ ...selectedUser, permissions: newPermissions });
+  };
+
+  const toggleAllForResource = (resource: string) => {
+    if (!selectedUser) return;
+    
+    let newPermissions = [...(selectedUser.permissions || [])];
+    const hasAllActions = Object.keys(ACTIONS).every(action => 
+      hasPermission(newPermissions, resource, action)
+    );
+
+    if (hasAllActions) {
+      // Remove all permissions for this resource
+      newPermissions = newPermissions.filter(p => p.resource !== resource);
+    } else {
+      // Add all missing permissions for this resource
+      Object.keys(ACTIONS).forEach(action => {
+        if (!hasPermission(newPermissions, resource, action)) {
+          newPermissions.push({ resource, action });
+        }
+      });
+    }
+
+    setSelectedUser({ ...selectedUser, permissions: newPermissions });
+  };
+
+  const toggleAllForAction = (action: string) => {
+    if (!selectedUser) return;
+    
+    let newPermissions = [...(selectedUser.permissions || [])];
+    const hasAllResources = Object.keys(RESOURCES).every(resource => 
+      hasPermission(newPermissions, resource, action)
+    );
+
+    if (hasAllResources) {
+      // Remove this action from all resources
+      newPermissions = newPermissions.filter(p => p.action !== action);
+    } else {
+      // Add this action to all resources
+      Object.keys(RESOURCES).forEach(resource => {
+        if (!hasPermission(newPermissions, resource, action)) {
+          newPermissions.push({ resource, action });
+        }
+      });
+    }
+
+    setSelectedUser({ ...selectedUser, permissions: newPermissions });
   };
 
   return (
@@ -196,6 +312,89 @@ export default function SettingsPage() {
                     </Select>
                   </TableCell>
                   <TableCell>
+                    <Dialog open={open} onOpenChange={setOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          onClick={() => setSelectedUser(user)}
+                        >
+                          Manage Permissions
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-3xl">
+                        <DialogHeader>
+                          <DialogTitle>Manage Permissions - {selectedUser?.name}</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="border rounded-lg">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Resource</TableHead>
+                                  {Object.entries(ACTIONS).map(([key, label]) => (
+                                    <TableHead key={key}>
+                                      <div className="flex flex-col items-center">
+                                        <span>{label}</span>
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedUser ? Object.keys(RESOURCES).every(resource => 
+                                            hasPermission(selectedUser.permissions, resource, key)
+                                          ) : false}
+                                          onChange={() => toggleAllForAction(key)}
+                                          className="mt-2 h-4 w-4 rounded border-gray-300"
+                                        />
+                                      </div>
+                                    </TableHead>
+                                  ))}
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {Object.entries(RESOURCES).map(([resource, label]) => (
+                                  <TableRow key={resource}>
+                                    <TableCell className="font-medium">
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedUser ? Object.keys(ACTIONS).every(action => 
+                                            hasPermission(selectedUser.permissions, resource, action)
+                                          ) : false}
+                                          onChange={() => toggleAllForResource(resource)}
+                                          className="h-4 w-4 rounded border-gray-300"
+                                        />
+                                        {label}
+                                      </div>
+                                    </TableCell>
+                                    {Object.entries(ACTIONS).map(([action, _]) => (
+                                      <TableCell key={action} className="text-center">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedUser ? hasPermission(selectedUser?.permissions, resource, action) : false}
+                                          onChange={() => selectedUser && togglePermission(selectedUser, resource, action)}
+                                          className="h-4 w-4 rounded border-gray-300"
+                                        />
+                                      </TableCell>
+                                    ))}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => setOpen(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={() => selectedUser && handleUpdatePermissions(selectedUser.id, selectedUser.permissions)}
+                            >
+                              Save Changes
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                     <Button variant="destructive" size="sm">
                       Delete
                     </Button>

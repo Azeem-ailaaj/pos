@@ -6,6 +6,7 @@ import "./globals.css";
 import { getServerSession } from "next-auth/next"
 import { headers } from 'next/headers'
 import { AuthProvider } from "@/providers/auth"
+import LogoutSync from '@/components/LogoutSync'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider session={session}>
           <QueryProvider> {/* ✅ Wrap inside QueryProvider */}
+            <LogoutSync />
             {children}
             <Toaster position="top-center" />
           </QueryProvider>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-export default function SignInPage() {
+export default function SignIn() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -15,25 +15,33 @@ export default function SignInPage() {
     password: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const formData = new FormData(e.currentTarget);
+      const email = formData.get("email") as string;
+      const password = formData.get("password") as string;
+
       const result = await signIn("credentials", {
-        email: formData.email,
-        password: formData.password,
+        email: email.toLowerCase(),
+        password,
         redirect: false,
       });
 
       if (result?.error) {
-        throw new Error(result.error);
+        toast.error("Invalid email or password");
+        return;
       }
 
-      toast.success("Signed in successfully");
-      router.push("/admin/dashboard"); // Changed this line
-    } catch (error: any) {
-      toast.error(error.message);
+      if (result?.ok) {
+        router.push("/admin/dashboard");
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Sign in error:", error);
+      toast.error("An error occurred during sign in");
     } finally {
       setLoading(false);
     }

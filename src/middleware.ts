@@ -1,24 +1,50 @@
-import { withAuth } from "next-auth/middleware"
+import { getToken } from "next-auth/jwt"
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
-export default withAuth(
-  function middleware(req) {
-    // Verify if user is authenticated and trying to access admin routes
-    if (req.nextUrl.pathname.startsWith("/admin") && !req.nextauth.token) {
-      return NextResponse.redirect(new URL("/auth/signin", req.url))
-    }
-    return NextResponse.next()
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token
-    },
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ req: request })
+  
+  if (!token) {
+    return NextResponse.redirect(new URL("/auth/signin", request.url))
   }
-)
+
+  const path = request.nextUrl.pathname
+  const permissions = token.permissions as any[] || []
+
+  // Admin panel access check
+  if (path.startsWith("/admin")) {
+    const hasAdminAccess = permissions.some(
+      p => p.resource === "admin" && p.action === "access_admin_panel"
+    )
+
+    if (!hasAdminAccess) {
+      return NextResponse.redirect(new URL("/auth/signin", request.url))
+    }
+
+    // Redirect /admin to /admin/dashboard
+    if (path === "/admin") {
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url))
+    }
+  }
+
+  // Location specific checks
+  if (path.startsWith("/admin/locations")) {
+    const canViewLocations = permissions.some(
+      p => p.resource === "locations" && p.action === "view"
+    )
+    
+    if (!canViewLocations) {
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url))
+    }
+  }
+
+  return NextResponse.next()
+}
 
 export const config = {
   matcher: [
     "/admin/:path*",
-    "/api/admin/:path*",
+    "/api/admin/:path*"
   ]
 }

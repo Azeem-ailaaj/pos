@@ -1,108 +1,107 @@
 "use client";
 
-import { useState } from "react";
-import { useSession, signOut } from "next-auth/react";
-import { getServerSession } from "next-auth/next";
-import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Tags,
-  User,
-  Settings,
-  Menu,
-  LogOut,
+  Building2,
   ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Users,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 
-interface AdminLayoutProps {
-  children: React.ReactNode;
-}
+const menuItems = [
+  {
+    title: "Dashboard",
+    href: "/admin/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Locations",
+    href: "/admin/locations",
+    icon: Building2,
+  },
+  {
+    title: "Users",
+    href: "/admin/users",
+    icon: Users,
+  },
+  {
+    title: "Settings",
+    href: "/admin/settings",
+    icon: Settings,
+  },
+];
 
-const AdminLayout = ({ children }: AdminLayoutProps) => {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { data: session } = useSession();
 
-  const menuItems = [
-    { 
-      icon: LayoutDashboard, 
-      label: "Dashboard", 
-      href: "/admin/dashboard" 
-    },
-    { 
-      icon: Tags, 
-      label: "Brands", 
-      href: "/admin/brands" 
-    },
-    { 
-      icon: User, 
-      label: "Profile", 
-      href: "/admin/profile" 
-    },
-    { 
-      icon: Settings, 
-      label: "Settings", 
-      href: "/admin/settings" 
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+      <aside
         className={cn(
-          "fixed left-0 top-0 h-full bg-white border-r transition-all duration-300 z-50",
+          "relative flex flex-col border-r bg-white transition-all duration-300 ease-in-out dark:bg-gray-800",
           collapsed ? "w-16" : "w-64"
         )}
       >
-        <div className="flex items-center justify-between p-4 border-b">
-          <h1
-            className={cn(
-              "font-bold transition-all duration-300",
-              collapsed ? "scale-0" : "scale-100"
-            )}
-          >
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3 top-6 z-40 flex h-6 w-6 items-center justify-center rounded-full border bg-white text-gray-600 dark:bg-gray-800 dark:text-gray-200"
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </button>
+
+        <div className="flex h-16 items-center justify-center border-b px-4">
+          <h1 className={cn(
+            "text-xl font-bold transition-all duration-300",
+            collapsed ? "scale-0" : "scale-100"
+          )}>
             Admin Panel
           </h1>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-lg hover:bg-gray-100"
-          >
-            {collapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
-          </button>
         </div>
-        <nav className="p-2">
+
+        <nav className="flex-1 space-y-1 p-2">
           {menuItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className={cn(
+                "flex items-center space-x-2 rounded-lg px-3 py-2 transition-all duration-200",
+                pathname === item.href
+                  ? "bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white"
+                  : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700/50"
+              )}
             >
-              <item.icon size={20} />
-              <span
-                className={cn(
-                  "transition-all duration-300",
-                  collapsed ? "hidden" : "block"
-                )}
-              >
-                {item.label}
+              <item.icon className={cn(
+                "h-5 w-5 flex-shrink-0",
+                pathname === item.href
+                  ? "text-gray-900 dark:text-white"
+                  : "text-gray-400"
+              )} />
+              <span className={cn(
+                "transition-all duration-300",
+                collapsed ? "scale-0" : "scale-100"
+              )}>
+                {item.title}
               </span>
             </Link>
           ))}
         </nav>
-      </div>
+      </aside>
 
-      {/* Main Content */}
-      <div
-        className={cn(
-          "transition-all duration-300 min-h-screen",
-          collapsed ? "ml-16" : "ml-64"
-        )}
-      >
-        {/* Top Bar */}
-        <div className="bg-white border-b sticky top-0 z-40">
+      <div className="flex flex-1 flex-col">
+        <header className="border-b bg-white shadow-sm dark:bg-gray-800">
           <div className="flex items-center justify-end px-6 py-3">
             <div className="flex items-center gap-4">
               <span className="text-sm">{session?.user?.email}</span>
@@ -110,18 +109,19 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                 onClick={() => signOut({ callbackUrl: "/" })}
                 className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
-                <LogOut size={20} />
-                <span>Sign Out</span>
+                <LogOut className="h-4 w-4" />
+                <span className="text-sm">Sign out</span>
               </button>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Page Content */}
-        <div className="p-6">{children}</div>
+        <main className="flex-1 overflow-auto bg-gray-50 p-4 dark:bg-gray-900">
+          <div className="mx-auto max-w-7xl">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );
-};
-
-export default AdminLayout;
+}
